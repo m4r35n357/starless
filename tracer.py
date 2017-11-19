@@ -31,7 +31,6 @@ import curses
 METH_LEAPFROG = 0
 METH_RK4 = 1
 
-
 #rough option parsing
 LOFI = False
 
@@ -620,6 +619,17 @@ def showprogress(messtring,i,queue):
 #    pass
 
 def raytrace_schedule(i,schedule,total_shared,q): # this is the function running on each thread
+    def stormer_verlet(z, position, momentum):
+        position += 0.5 * momentum * STEP * z
+        if DISTORT:
+            # this is the magical - 3/2 r^(-5) potential...
+            momentum += - 1.5 * h2 * position / np.power(sqrnorm(position), 2.5)[:, np.newaxis] * STEP * z
+        position += 0.5 * momentum * STEP * z
+        return position, momentum
+
+    z_outer = 1.0 / (4.0 - 4.0 ** (1.0 / 3.0))
+    z_inner = 1.0 - 4.0 * z_outer
+
     #global schedules,itcounters,chnkcounters,killers
 
     if len(schedule) == 0:
@@ -696,15 +706,11 @@ def raytrace_schedule(i,schedule,total_shared,q): # this is the function running
             oldpoint = np.copy(point) #not needed for tracing. Useful for intersections
 
             if METHOD == METH_LEAPFROG:
-                #leapfrog method here feels good
-                point += 0.5 * velocity * STEP
-
-                if DISTORT:
-                    #this is the magical - 3/2 r^(-5) potential...
-                    accel = - 1.5 * h2 *  point / np.power(sqrnorm(point),2.5)[:,np.newaxis]
-                    velocity += accel * STEP
-
-                point += 0.5 * velocity * STEP
+                for _ in [1, 2]:
+                    point, velocity = stormer_verlet(z_outer, point, velocity)
+                point, velocity = stormer_verlet(z_inner, point, velocity)
+                for _ in [4, 5]:
+                    point, velocity = stormer_verlet(z_outer, point, velocity)
 
             elif METHOD == METH_RK4:
                 if DISTORT:
