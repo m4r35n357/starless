@@ -133,7 +133,7 @@ cfp.read(SCENE_FNAME)
 FOGSKIP = 1
 
 
-METHOD = METH_RK4
+METHOD = METH_LEAPFROG
 
 #enums to avoid per-iteration string comparisons
 
@@ -697,12 +697,14 @@ def raytrace_schedule(i,schedule,total_shared,q): # this is the function running
 
             if METHOD == METH_LEAPFROG:
                 #leapfrog method here feels good
-                point += velocity * STEP
+                point += 0.5 * velocity * STEP
 
                 if DISTORT:
                     #this is the magical - 3/2 r^(-5) potential...
                     accel = - 1.5 * h2 *  point / np.power(sqrnorm(point),2.5)[:,np.newaxis]
                     velocity += accel * STEP
+
+                point += 0.5 * velocity * STEP
 
             elif METHOD == METH_RK4:
                 if DISTORT:
